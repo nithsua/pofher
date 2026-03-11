@@ -146,6 +146,46 @@ What's up after
 	+--------------------+
 	| 0x08 | stackguard0 |
 	+--------------------+
+
+-> Precode stack checker happens but the stack itself is missing since it's running on bare metal. So we will bootstrap a stack
+	=> Reserve 16K of uninitialized data (.bss section) for kernel image
+		- Load stack pointer with address to end of this block
+	=> Setup gs register according to the Application Binary Interface for Thread Local Storage
+	=> Populate a g struct
+		- Runtime package already initializes a g instance for the main goroutine called g0
+		- Set g0.stack.hi / g0.stack.lo to bounds of the reserved stack memory
+		- Set g0.stackguard0 = g0.stack.lo -> bypass stack growth checks
+
+-> Go Build
+	=> We can target 386 using go build's cross compilation
+	=> A seperate link step has to be performed to link the object files into a binary
+		-> This is done by intercepting go build process
+		-> -n flag of go build will output the build script used for the package
+			GOARCH=386 GOOS=linux go build -n 2>&1 | sed -e "ls|^|set -e \n|" -e "ls|^|export GOOS=linux \n|" -e "ls|^|export GOARCH=386 \n|" \
+				-e "ls|^|WORK='$(BUILD_ABS_DIR)\n'" -e "s|-extld|-linkmode=external -tmpdir='$(BUILD_ABS_DIR)' -extldflags='-nostdlib' -extld|g" | bash
+-> Linking the final kernel image
+	=> Use GNU ld to link the final kernel image
+		- The object file produced by nasm
+		- The go.o file produced by the modified go build step
+	=> Invoking the linker will ideally throw error since all symbols in go object files are private
+	=> objcopy can be used to make symbols public
+		- objcopy --globalize-symbols runtime.g0 $(BUILD_DIR)/go.o $(BUILD_DIR)/go.o
+
+-> Screen output
+	=> Now on boot we will display to the screen by spinning up in VGA 80x25 text mode
+		- Linear framebuffer located at 0xB8000
+	=> 2 bytes per character. One for the character code and one for the color attributes
+	=> Attribute byte
+		- 4 bits for background color, 4 bits for foreground color.
+		- 16 possible colors (2^4)
+-> Limitations
+	=> Unsupported go runtime features
+		- Maps
+		- Goroutines
+		- Interfaces
+		- defer
+	=> Go memory allocator
+		- Calls to allocator will cause triple-fault
 */
 
 package main
