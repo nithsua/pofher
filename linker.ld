@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Nivas Muthu M G. All rights reserved.
+// Use of this source code is governed by a GPL v2 license
+// that can be found in the LICENSE file.
+
 /*
 We will be placing the binary from 1MB of the physical memory
 1MB because from 0 to 1MB the physcial memory would look like below in a x86 system:
