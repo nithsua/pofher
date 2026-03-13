@@ -1,4 +1,4 @@
-# gopho
+# pofher
 
 A bare-metal x86 OS written in Go.
 
